@@ -2,8 +2,14 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Itano Circus Web</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Itano Circus PWA</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#05050a">
+    <link rel="manifest" href="manifest.json">
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,14 +31,14 @@
             </div>
 
             <div class="credits">
-                <p>Juego Diseñado por: S0l3k T3rc3r0</p>
+                <p>Juego Diseñado por: Solek Tercero</p>
                 <p class="centered">J.C.G.G.</p>
             </div>
         </div>
 
         <div id="hud" class="hidden">
             <div id="missile-count">Misiles: 0</div>
-            <div id="timer-display" class="gold-text">00:00</div>
+            <div id="timer-display" class="gold-text">SCORE: 0</div>
             
             <div class="health-wrapper">
                 <div class="health-container">
@@ -41,7 +47,7 @@
                 <span id="health-pct">100%</span>
             </div>
             
-            <div id="level-indicator">NIVEL 1</div>
+            <div id="level-indicator">NIVEL 1 | 60s</div>
             <div id="countdown" class="hidden">4</div>
         </div>
 

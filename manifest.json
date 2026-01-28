@@ -1,0 +1,18 @@
+{
+  "short_name": "ItanoCircus",
+  "name": "Itano Circus: Piloto de Elite",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1356/1356479.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#05050a",
+  "display": "standalone",
+  "scope": "./",
+  "theme_color": "#00f2ff",
+  "orientation": "landscape"
+}
