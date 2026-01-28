@@ -1,0 +1,29 @@
+body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; color: white; font-family: sans-serif; }
+#game-container { position: relative; width: 100vw; height: 100vh; }
+canvas { display: block; width: 100%; height: 100%; }
+
+.overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.85); text-align: center; z-index: 10; }
+.hidden { display: none !important; }
+
+/* Textos */
+.metal-text { font-size: clamp(3rem, 10vw, 6rem); background: linear-gradient(#eee, #777, #222); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0; filter: drop-shadow(0 0 10px rgba(0,255,255,0.3)); }
+.gold-text { color: #ffd700; text-shadow: 0 0 5px #000; }
+.instructions { color: #00f2ff; margin: 20px; font-weight: bold; }
+
+/* HUD */
+#missile-count { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; color: #fff; }
+#timer-display { position: absolute; top: 20px; right: 20px; font-size: 1.5rem; }
+#level-indicator { position: absolute; bottom: 20px; left: 20px; color: #00f2ff; }
+
+.health-wrapper { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 15px; }
+.health-container { width: 200px; height: 20px; background: #300; border: 2px solid #fff; }
+#health-bar { width: 100%; height: 100%; background: #0f7; transition: 0.2s; }
+#health-pct { font-weight: bold; min-width: 50px; }
+
+#countdown { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 15rem; color: #00f2ff; text-shadow: 0 0 20px #00f2ff; z-index: 5; }
+
+/* Botones y Créditos */
+button { background: none; border: 2px solid #00f2ff; color: #00f2ff; padding: 10px 30px; font-size: 1.2rem; cursor: pointer; margin: 10px; }
+button:hover { background: #00f2ff; color: #000; }
+.credits { position: absolute; bottom: 20px; right: 20px; text-align: right; font-size: 0.7rem; color: #aaa; }
+.centered { text-align: center; display: block; }

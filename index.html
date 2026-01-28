@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Itano Circus Web</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="menu-screen" class="overlay">
+            <h1 class="metal-text">ITANO CIRCUS</h1>
+            <p class="instructions">Piloto, tu misión es escapar de los misiles del enemigo.</p>
+            
+            <div id="leaderboard">
+                <h3>RECORDS (TOP 4)</h3>
+                <div id="scores-list"></div>
+            </div>
+
+            <div class="button-group">
+                <button onclick="startGame()">INICIO</button>
+                <button onclick="cerrarVentana()">SALIR</button>
+            </div>
+
+            <div class="credits">
+                <p>Juego Diseñado por: S0l3k T3rc3r0</p>
+                <p class="centered">J.C.G.G.</p>
+            </div>
+        </div>
+
+        <div id="hud" class="hidden">
+            <div id="missile-count">Misiles: 0</div>
+            <div id="timer-display" class="gold-text">00:00</div>
+            
+            <div class="health-wrapper">
+                <div class="health-container">
+                    <div id="health-bar"></div>
+                </div>
+                <span id="health-pct">100%</span>
+            </div>
+            
+            <div id="level-indicator">NIVEL 1</div>
+            <div id="countdown" class="hidden">4</div>
+        </div>
+
+        <div id="game-over" class="overlay hidden">
+            <h2 class="metal-text">MISIÓN FALLIDA</h2>
+            <button onclick="location.reload()">REINTENTAR</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
