@@ -6,7 +6,7 @@ canvas { display: block; width: 100%; height: 100%; }
 .hidden { display: none !important; }
 
 /* Textos */
-.metal-text { font-size: clamp(3rem, 10vw, 6rem); background: linear-gradient(#eee, #777, #222); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0; filter: drop-shadow(0 0 10px rgba(0,255,255,0.3)); }
+.metal-text { font-size: clamp(3rem, 10vw, 6rem); background: linear-gradient(#eee, #777, #222); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0; filter: drop-shadow(0 0 10px rgba(0,255,255,0.3));background-clip: text; }
 .gold-text { color: #ffd700; text-shadow: 0 0 5px #000; }
 .instructions { color: #00f2ff; margin: 20px; font-weight: bold; }
 

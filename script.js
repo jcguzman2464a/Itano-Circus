@@ -1,5 +1,17 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+// === AUDIO (Web Audio API) ===
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+// Para activar audio con interacción del usuario
+window.addEventListener('click', () => {
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}, { once: true });
+
+
 let width, height, stars = [], missiles = [], particles = [], ships = [];
 let gameState = 'MENU', health = 100, level = 1, gameTimer = 60;
 let currentScore = 0;
@@ -43,14 +55,10 @@ class Ship {
         }
     }
     draw() {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.fillStyle = "#00f2ff";
-        ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(50, 0); ctx.lineTo(0, 20); ctx.fill();
-        ctx.fillStyle = "#0af";
-        ctx.beginPath(); ctx.ellipse(-10, 0, 20 + Math.random() * 10, 8, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
+    let angle = Math.sin(Date.now() * 0.002) * 0.05;
+    drawVF19(this.x, this.y, 2.5, angle);
     }
+
 }
 
 class Missile {
@@ -114,7 +122,7 @@ class Missile {
             if (this.trail[i].opacity <= 0) this.trail.splice(i, 1);
         }
 
-        if (dist < 20) { this.alive = false; createExplosion(this.pos.x, this.pos.y); health--; }
+        if (dist < 20) { this.alive = false; createExplosion(this.pos.x, this.pos.y); playBubblePop(); health--; }
     }
 
     draw() {
@@ -161,6 +169,132 @@ function startLevel() {
 
 function cerrarVentana() {
     if (confirm("¿Deseas salir del juego?")) window.close();
+}
+
+function drawVF19(x, y, scale = 4, angle = 0) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.scale(scale, scale);
+
+    // Sombreado general para dar volumen
+    const colorLight = "#e9eeff";
+    const colorMid = "#b6c4ff";
+    const colorDark = "#6d7fb3";
+    const shadow = "rgba(0, 0, 0, 0.2)";
+
+    // === MOTOR LEJANO (Más pequeño por perspectiva) ===
+    ctx.fillStyle = colorDark;
+    ctx.fillRect(-10, -6, 7, 2.5);
+
+    // === ALA LEJANA (Comprimida) ===
+    ctx.fillStyle = colorMid;
+    ctx.beginPath();
+    ctx.moveTo(-4, -2.5);
+    ctx.lineTo(4, -8);
+    ctx.lineTo(6, -8);
+    ctx.lineTo(1, -2.5);
+    ctx.fill();
+
+    // === FUSELAJE CENTRAL (El lomo de la nave) ===
+    ctx.fillStyle = colorLight;
+    ctx.beginPath();
+    ctx.moveTo(-12, -1);
+    ctx.lineTo(14, -2); // Línea superior hacia la nariz
+    ctx.lineTo(18, 0);  // Punta
+    ctx.lineTo(14, 2);  // Línea inferior
+    ctx.lineTo(-12, 4); // Base trasera
+    ctx.closePath();
+    ctx.fill();
+
+    // Sombra en el costado para dar grosor
+    ctx.fillStyle = shadow;
+    ctx.beginPath();
+    ctx.moveTo(14, 2);
+    ctx.lineTo(18, 0);
+    ctx.lineTo(14, 0.5);
+    ctx.fill();
+
+    // === CABINA (Elevada sobre el fuselaje) ===
+    ctx.fillStyle = "rgba(0, 200, 255, 0.8)";
+    ctx.beginPath();
+    // Desplazada ligeramente hacia arriba para el efecto 3/4
+    ctx.ellipse(7, -1, 4.5, 1.8, -0.05, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Brillo del cristal
+    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.fillRect(6, -1.8, 3, 0.6);
+
+    // === CANARD CERCANO ===
+    ctx.fillStyle = colorLight;
+    ctx.beginPath(); ctx.moveTo(5, 1); ctx.lineTo(10, 5); ctx.lineTo(12, 1); ctx.fill();
+
+    // === MOTOR CERCANO (Más grande y detallado) ===
+    ctx.fillStyle = colorDark;
+    ctx.fillRect(-11, 1, 9, 4);
+    // Detalle de la toma de aire
+    ctx.fillStyle = "#333";
+    ctx.fillRect(-2, 1.5, 1.5, 3);
+
+    // === ALA CERCANA (Expandida hacia el frente) ===
+    ctx.fillStyle = colorMid;
+    ctx.beginPath();
+    ctx.moveTo(-4, 2);
+    ctx.lineTo(8, 12); // Punta más larga
+    ctx.lineTo(11, 12);
+    ctx.lineTo(4, 2);
+    ctx.fill();
+
+    // === PROPULSORES (Post-combustión) ===
+    let t = Date.now() * 0.02;
+    let flicker = Math.sin(t) * 4;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = "#00f2ff";
+    
+    // Llama lejana
+    ctx.fillStyle = "rgba(0, 150, 255, 0.5)";
+    ctx.beginPath(); ctx.moveTo(-10, -5); ctx.lineTo(-18 - flicker, -4.7); ctx.lineTo(-10, -4.5); ctx.fill();
+    
+    // Llama cercana (más brillante)
+    ctx.fillStyle = "rgba(0, 200, 255, 0.7)";
+    ctx.beginPath(); ctx.moveTo(-11, 2); ctx.lineTo(-24 - flicker, 3); ctx.lineTo(-11, 4); ctx.fill();
+
+    ctx.restore();
+}
+
+function playBubblePop() {
+    if (audioCtx.state !== 'running') return;
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    // Tipo de onda: burbujeo
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(420, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(
+        120,
+        audioCtx.currentTime + 0.15
+    );
+
+    // Filtro suave (acuoso)
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+
+    // Volumen corto
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audioCtx.currentTime + 0.2
+    );
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.2);
 }
 
 
