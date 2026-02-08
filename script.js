@@ -331,11 +331,14 @@ function updateScores() {
 window.addEventListener('resize', resize);
 const updateMouse = e => { 
     let t = e.touches ? e.touches[0] : e;
-    mouse.x = t.clientX; mouse.y = t.clientY; 
+    mouse.x = t.clientX; 
+    mouse.y = t.clientY; 
 };
-window.addEventListener('mousemove', updateMouse);
-window.addEventListener('touchstart', updateMouse);
-window.addEventListener('touchmove', updateMouse);
+
+// Reemplaza estas líneas al final de tu script.js:
+window.addEventListener('mousemove', updateMouse, { passive: false });
+window.addEventListener('touchstart', updateMouse, { passive: false });
+window.addEventListener('touchmove', updateMouse, { passive: false });
 
 resize();
 for (let i = 0; i < 150; i++) stars.push(new Star());
