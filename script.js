@@ -330,12 +330,15 @@ function updateScores() {
 
 window.addEventListener('resize', resize);
 const updateMouse = e => { 
+    // Si es un evento táctil, prevenimos que la pantalla se mueva
+    if (e.cancelable) e.preventDefault(); 
+    
     let t = e.touches ? e.touches[0] : e;
     mouse.x = t.clientX; 
     mouse.y = t.clientY; 
 };
 
-// Reemplaza estas líneas al final de tu script.js:
+
 window.addEventListener('mousemove', updateMouse, { passive: false });
 window.addEventListener('touchstart', updateMouse, { passive: false });
 window.addEventListener('touchmove', updateMouse, { passive: false });
