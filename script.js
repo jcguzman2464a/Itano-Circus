@@ -341,3 +341,25 @@ resize();
 for (let i = 0; i < 150; i++) stars.push(new Star());
 updateScores();
 animate();
+
+// --- LÓGICA DE REGISTRO Y ACTUALIZACIÓN ---
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            // Revisar si hay una actualización esperando
+            reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                installingWorker.onstatechange = () => {
+                    if (installingWorker.state === 'installed') {
+                        if (navigator.serviceWorker.controller) {
+                            // Si ya hay un controlador, significa que hay código nuevo listo
+                            console.log("Nueva versión detectada");
+                            const banner = document.getElementById('update-banner');
+                            if (banner) banner.classList.remove('hidden');
+                        }
+                    }
+                };
+            };
+        }).catch(err => console.log('Error al registrar SW:', err));
+    });
+}
