@@ -1,4 +1,4 @@
-const CACHE_NAME = 'itano-circus-v2'; // Cambia el v2 cada vez que actualices el código
+const CACHE_NAME = 'itano-circus-v1.6'; // Cambia el v2 cada vez que actualices el código
 const ASSETS = [
   './',
   './index.html',

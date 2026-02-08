@@ -1,22 +1,22 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-// === AUDIO (Web Audio API) ===
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioCtx = new AudioContext();
 
-// Para activar audio con interacción del usuario
 window.addEventListener('click', () => {
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
+    if (audioCtx.state === 'suspended') { audioCtx.resume(); }
 }, { once: true });
-
 
 let width, height, stars = [], missiles = [], particles = [], ships = [];
 let gameState = 'MENU', health = 100, level = 1, gameTimer = 60;
 let currentScore = 0;
 let mouse = { x: 0, y: 0 };
 let highScore = JSON.parse(localStorage.getItem('itanoScores')) || [0, 0, 0, 0];
+
+// Variables para nuevas mecánicas
+let isShieldActive = false;
+let shieldTimer = 0;
+let specialMsg = "";
 
 function resize() {
     width = canvas.width = window.innerWidth;
@@ -47,18 +47,16 @@ class Ship {
     update() {
         if (Math.abs(this.y - this.targetY) < 10) this.targetY = Math.random() * (height - 100) + 50;
         this.y += (this.targetY - this.y) * 0.03;
-        
         if (gameState === 'GAME' && Date.now() - this.lastShot > this.shotDelay) {
-            if (missiles.length < 180) fireItano(this.x, this.y);
+            if (missiles.length < 250) fireItano(this.x, this.y);
             this.lastShot = Date.now();
             this.shotDelay = Math.random() * 6000 + 4000;
         }
     }
     draw() {
-    let angle = Math.sin(Date.now() * 0.002) * 0.05;
-    drawVF19(this.x, this.y, 2.5, angle);
+        let angle = Math.sin(Date.now() * 0.002) * 0.05;
+        drawVF19(this.x, this.y, 2.5, angle);
     }
-
 }
 
 class Missile {
@@ -72,14 +70,11 @@ class Missile {
         this.boostCount = 0;
         this.trail = [];
         this.alive = true;
-        this.spiralOffset = Math.random() * Math.PI * 2; // Desfase para que no todos giren igual
+        this.spiralOffset = Math.random() * Math.PI * 2;
     }
-
     update() {
         let now = Date.now();
         let age = (now - this.born) / 1000;
-
-        // Re-Boost Itano
         let shouldBoost = (this.boostCount === 0 && age >= 6) || (this.boostCount > 0 && (age - this.lastBoostTime) >= 3);
         if (shouldBoost) {
             this.maxSpeed *= 1.33;
@@ -88,43 +83,32 @@ class Missile {
             this.vel.x = Math.cos(Math.random()*Math.PI*2) * this.maxSpeed;
             this.vel.y = Math.sin(Math.random()*Math.PI*2) * this.maxSpeed;
         }
-
         let dx = mouse.x - this.pos.x, dy = mouse.y - this.pos.y;
         let dist = Math.sqrt(dx * dx + dy * dy);
-
         if (dist > 0) {
-            // 1. Dirección base al objetivo
-            let dirX = dx / dist;
-            let dirY = dy / dist;
-
-            // 2. MOVIMIENTO EN ESPIRAL
-            // Creamos un movimiento perpendicular (seno/coseno) que oscila con el tiempo
-            let spiralFrequency = 5; // Rapidez del giro
-            let spiralAmplitude = 4;  // Ancho de la espiral
-            let spiralX = -dirY * Math.sin(age * spiralFrequency + this.spiralOffset) * spiralAmplitude;
-            let spiralY = dirX * Math.sin(age * spiralFrequency + this.spiralOffset) * spiralAmplitude;
-
-            let desiredX = (dirX * this.maxSpeed) + spiralX;
-            let desiredY = (dirY * this.maxSpeed) + spiralY;
-
-            this.vel.x += (desiredX - this.vel.x) * 0.08;
-            this.vel.y += (desiredY - this.vel.y) * 0.08;
+            let dirX = dx / dist, dirY = dy / dist;
+            let sFreq = 5, sAmp = 4;
+            let sX = -dirY * Math.sin(age * sFreq + this.spiralOffset) * sAmp;
+            let sY = dirX * Math.sin(age * sFreq + this.spiralOffset) * sAmp;
+            let dX = (dirX * this.maxSpeed) + sX;
+            let dY = (dirY * this.maxSpeed) + sY;
+            this.vel.x += (dX - this.vel.x) * 0.08;
+            this.vel.y += (dY - this.vel.y) * 0.08;
         }
-
         this.pos.x += this.vel.x; this.pos.y += this.vel.y;
-
-        // Humo
         this.trail.push({ x: this.pos.x, y: this.pos.y, opacity: 1.0, size: Math.random() * 3 + 2 });
-        let decayRate = 0.04 + (this.boostCount * 0.02);
+        let decay = 0.04 + (this.boostCount * 0.02);
         for (let i = this.trail.length - 1; i >= 0; i--) {
-            this.trail[i].opacity -= decayRate;
-            this.trail[i].size *= 0.98;
+            this.trail[i].opacity -= decay;
             if (this.trail[i].opacity <= 0) this.trail.splice(i, 1);
         }
-
-        if (dist < 20) { this.alive = false; createExplosion(this.pos.x, this.pos.y); playBubblePop(); health--; }
+        if (dist < 20) { 
+            this.alive = false; 
+            createExplosion(this.pos.x, this.pos.y); 
+            playBubblePop(); 
+            if (!isShieldActive) health--; 
+        }
     }
-
     draw() {
         this.trail.forEach(t => {
             ctx.fillStyle = `rgba(180, 180, 180, ${t.opacity})`;
@@ -135,10 +119,11 @@ class Missile {
     }
 }
 
-// --- Resto de funciones del motor ---
 function fireItano(x, y) {
-    let m = (level === 2 || level === 4) ? 1.1 : 1;
-    for (let i = 0; i < 18; i++) missiles.push(new Missile(x, y, m));
+    let mMult = 1;
+    if (level === 2 || level === 4 || level === 6 || level === 8) mMult = 1.15;
+    if (level === 10) mMult = 1.20;
+    for (let i = 0; i < 18; i++) missiles.push(new Missile(x, y, mMult));
 }
 
 function createExplosion(x, y) {
@@ -148,6 +133,7 @@ function createExplosion(x, y) {
 function startGame() {
     document.getElementById('menu-screen').classList.add('hidden');
     document.getElementById('hud').classList.remove('hidden');
+    document.getElementById('game-over').classList.add('hidden'); // Ocultar si viene de reinicio
     level = 1; health = 100; currentScore = 0;
     startLevel();
 }
@@ -155,9 +141,21 @@ function startGame() {
 function startLevel() {
     gameState = 'COUNTDOWN';
     missiles = []; particles = [];
-    ships = [new Ship(1)];
-    if (level >= 3) ships.push(new Ship(2));
-    gameTimer = 60;
+    isShieldActive = false;
+    specialMsg = "";
+    
+    // Configuración de naves por nivel
+    let numShips = 1;
+    if (level >= 3) numShips = 2;
+    if (level >= 5) numShips = 3;
+    if (level >= 7) numShips = 4;
+    if (level >= 9) numShips = 5;
+    
+    ships = [];
+    for(let i=0; i<numShips; i++) ships.push(new Ship(i));
+    
+    gameTimer = (level >= 5) ? 90 : 60;
+    
     let c = 4;
     let el = document.getElementById('countdown');
     el.classList.remove('hidden'); el.innerText = c;
@@ -167,167 +165,127 @@ function startLevel() {
     }, 1000);
 }
 
-function cerrarVentana() {
-    if (confirm("¿Deseas salir del juego?")) window.close();
-}
-
 function drawVF19(x, y, scale = 4, angle = 0) {
     ctx.save();
+    ctx.translate(x, y); ctx.rotate(angle); ctx.scale(scale, scale);
+    const colorLight = "#e9eeff", colorMid = "#b6c4ff", colorDark = "#6d7fb3";
+    ctx.fillStyle = colorDark; ctx.fillRect(-10, -6, 7, 2.5);
+    ctx.fillStyle = colorMid; ctx.beginPath(); ctx.moveTo(-4, -2.5); ctx.lineTo(4, -8); ctx.lineTo(6, -8); ctx.lineTo(1, -2.5); ctx.fill();
+    ctx.fillStyle = colorLight; ctx.beginPath(); ctx.moveTo(-12, -1); ctx.lineTo(14, -2); ctx.lineTo(18, 0); ctx.lineTo(14, 2); ctx.lineTo(-12, 4); ctx.fill();
+    ctx.fillStyle = "rgba(0, 200, 255, 0.8)"; ctx.beginPath(); ctx.ellipse(7, -1, 4.5, 1.8, -0.05, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = colorLight; ctx.beginPath(); ctx.moveTo(5, 1); ctx.lineTo(10, 5); ctx.lineTo(12, 1); ctx.fill();
+    ctx.fillStyle = colorDark; ctx.fillRect(-11, 1, 9, 4);
+    ctx.fillStyle = colorMid; ctx.beginPath(); ctx.moveTo(-4, 2); ctx.lineTo(8, 12); ctx.lineTo(11, 12); ctx.lineTo(4, 2); ctx.fill();
+    ctx.restore();
+}
+
+function drawTargetShip(x, y) {
+    ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.scale(scale, scale);
-
-    // Sombreado general para dar volumen
-    const colorLight = "#e9eeff";
-    const colorMid = "#b6c4ff";
-    const colorDark = "#6d7fb3";
-    const shadow = "rgba(0, 0, 0, 0.2)";
-
-    // === MOTOR LEJANO (Más pequeño por perspectiva) ===
-    ctx.fillStyle = colorDark;
-    ctx.fillRect(-10, -6, 7, 2.5);
-
-    // === ALA LEJANA (Comprimida) ===
-    ctx.fillStyle = colorMid;
-    ctx.beginPath();
-    ctx.moveTo(-4, -2.5);
-    ctx.lineTo(4, -8);
-    ctx.lineTo(6, -8);
-    ctx.lineTo(1, -2.5);
-    ctx.fill();
-
-    // === FUSELAJE CENTRAL (El lomo de la nave) ===
-    ctx.fillStyle = colorLight;
-    ctx.beginPath();
-    ctx.moveTo(-12, -1);
-    ctx.lineTo(14, -2); // Línea superior hacia la nariz
-    ctx.lineTo(18, 0);  // Punta
-    ctx.lineTo(14, 2);  // Línea inferior
-    ctx.lineTo(-12, 4); // Base trasera
-    ctx.closePath();
-    ctx.fill();
-
-    // Sombra en el costado para dar grosor
-    ctx.fillStyle = shadow;
-    ctx.beginPath();
-    ctx.moveTo(14, 2);
-    ctx.lineTo(18, 0);
-    ctx.lineTo(14, 0.5);
-    ctx.fill();
-
-    // === CABINA (Elevada sobre el fuselaje) ===
-    ctx.fillStyle = "rgba(0, 200, 255, 0.8)";
-    ctx.beginPath();
-    // Desplazada ligeramente hacia arriba para el efecto 3/4
-    ctx.ellipse(7, -1, 4.5, 1.8, -0.05, 0, Math.PI * 2);
-    ctx.fill();
     
-    // Brillo del cristal
-    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-    ctx.fillRect(6, -1.8, 3, 0.6);
+    if (isShieldActive) {
+        ctx.strokeStyle = "#00f2ff";
+        ctx.lineWidth = 3;
+        for (let i = 0; i < 8; i++) {
+            ctx.beginPath();
+            ctx.arc(0, 0, 25, i * Math.PI/4, i * Math.PI/4 + 0.5);
+            ctx.stroke();
+        }
+        // Brillo azul
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#00f2ff";
+    }
 
-    // === CANARD CERCANO ===
-    ctx.fillStyle = colorLight;
-    ctx.beginPath(); ctx.moveTo(5, 1); ctx.lineTo(10, 5); ctx.lineTo(12, 1); ctx.fill();
-
-    // === MOTOR CERCANO (Más grande y detallado) ===
-    ctx.fillStyle = colorDark;
-    ctx.fillRect(-11, 1, 9, 4);
-    // Detalle de la toma de aire
-    ctx.fillStyle = "#333";
-    ctx.fillRect(-2, 1.5, 1.5, 3);
-
-    // === ALA CERCANA (Expandida hacia el frente) ===
-    ctx.fillStyle = colorMid;
-    ctx.beginPath();
-    ctx.moveTo(-4, 2);
-    ctx.lineTo(8, 12); // Punta más larga
-    ctx.lineTo(11, 12);
-    ctx.lineTo(4, 2);
-    ctx.fill();
-
-    // === PROPULSORES (Post-combustión) ===
-    let t = Date.now() * 0.02;
-    let flicker = Math.sin(t) * 4;
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = "#00f2ff";
-    
-    // Llama lejana
-    ctx.fillStyle = "rgba(0, 150, 255, 0.5)";
-    ctx.beginPath(); ctx.moveTo(-10, -5); ctx.lineTo(-18 - flicker, -4.7); ctx.lineTo(-10, -4.5); ctx.fill();
-    
-    // Llama cercana (más brillante)
-    ctx.fillStyle = "rgba(0, 200, 255, 0.7)";
-    ctx.beginPath(); ctx.moveTo(-11, 2); ctx.lineTo(-24 - flicker, 3); ctx.lineTo(-11, 4); ctx.fill();
-
+    let pulse = Math.sin(Date.now() * 0.02) * 2;
+    ctx.strokeStyle = "rgba(0, 255, 150, 0.5)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 12 + pulse, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "#333"; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#0f7"; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 }
 
 function playBubblePop() {
     if (audioCtx.state !== 'running') return;
-
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    const filter = audioCtx.createBiquadFilter();
-
-    // Tipo de onda: burbujeo
     osc.type = 'sine';
     osc.frequency.setValueAtTime(420, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(
-        120,
-        audioCtx.currentTime + 0.15
-    );
-
-    // Filtro suave (acuoso)
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(800, audioCtx.currentTime);
-
-    // Volumen corto
+    osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.15);
     gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-        0.001,
-        audioCtx.currentTime + 0.2
-    );
-
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.2);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
 }
-
 
 function animate() {
     ctx.fillStyle = "#000"; ctx.fillRect(0, 0, width, height);
     stars.forEach(s => { s.update(); s.draw(); });
 
     if (gameState === 'MENU') {
-        if (Math.random() < 0.04) { let m = new Missile(Math.random() * width, Math.random() * height); m.maxSpeed = 3; missiles.push(m); }
+        if (Math.random() < 0.04) { let m = new Missile(Math.random() * width, Math.random() * height, 0.5); missiles.push(m); }
         missiles.forEach((m, i) => { m.update(); m.draw(); if (m.pos.x < 0 || m.pos.x > width || !m.alive) missiles.splice(i, 1); });
     }
 
     if (gameState === 'GAME') {
         gameTimer -= 1 / 60;
-        
-        // LÓGICA DE SCORE DINÁMICO
-        // Ganar puntos por tiempo + (Misiles en pantalla / 10) cada frame
-        let dodgeBonus = missiles.length / 10;
-        currentScore += (1 + dodgeBonus);
+        let currentTime = Math.ceil(gameTimer);
+        currentScore += (1 + missiles.length / 10);
+
+        // --- LÓGICA NIVEL 5+: ESCUDO ---
+        if (level >= 5) {
+            let nextShield = currentTime % 30;
+            if (nextShield <= 3 && nextShield > 0) {
+                specialMsg = `Escudo en: ${nextShield}`;
+            } else if (nextShield === 0 || nextShield > 27) {
+                isShieldActive = true;
+                specialMsg = "¡ESCUDO ACTIVO!";
+            } else {
+                isShieldActive = false;
+                specialMsg = "";
+            }
+        }
+
+        // --- LÓGICA NIVEL 8+: BOMBA ---
+        if (level >= 8) {
+            if ((currentTime > 45 && currentTime <= 48) || (currentTime > 75 && currentTime <= 78)) {
+                specialMsg = `Bomba en: ${currentTime % 15 === 0 ? 0 : currentTime % 3}`;
+            }
+            if (currentTime === 45 || currentTime === 75) {
+                // Efecto Explosión Central
+                createExplosion(width/2, height/2);
+                missiles = [];
+                specialMsg = "¡BOMBA DESPLEGADA!";
+            }
+        }
 
         document.getElementById('timer-display').innerText = `SCORE: ${Math.floor(currentScore)}`;
         document.getElementById('health-bar').style.width = health + "%";
         document.getElementById('health-pct').innerText = health + "%";
         document.getElementById('missile-count').innerText = `Misiles: ${missiles.length}`;
-        document.getElementById('level-indicator').innerText = `NIVEL ${level} | Tiempo: ${Math.ceil(gameTimer)}s`;
+        document.getElementById('level-indicator').innerText = `NIVEL ${level} | Tiempo: ${currentTime}s`;
 
+        // Dibujar mensaje especial
+        if (specialMsg !== "") {
+            ctx.fillStyle = "#00f2ff";
+            ctx.font = "bold 24px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(specialMsg, width / 2, 100);
+        }
+
+        drawTargetShip(mouse.x, mouse.y);
         ships.forEach(s => { s.update(); s.draw(); });
         missiles.forEach((m, i) => { m.update(); m.draw(); if (!m.alive) missiles.splice(i, 1); });
 
         if (gameTimer <= 0) {
-            level++;
-            if (level > 4) { saveScore(Math.floor(currentScore)); location.reload(); }
-            else { health = 100; startLevel(); }
+            if (level === 10) {
+                gameState = 'VICTORY';
+                showVictoryScreen();
+            } else {
+                level++;
+                health = 100;
+                startLevel();
+            }
         }
         if (health <= 0) {
             gameState = 'GAMEOVER';
@@ -338,17 +296,28 @@ function animate() {
 
     particles.forEach((p, i) => {
         p.x += p.vx; p.y += p.vy; p.life -= 0.05;
-        ctx.fillStyle = p.c; ctx.globalAlpha = p.life;
-        ctx.fillRect(p.x, p.y, 4, 4);
+        ctx.fillStyle = p.c; ctx.globalAlpha = p.life; ctx.fillRect(p.x, p.y, 4, 4);
         if (p.life <= 0) particles.splice(i, 1);
     });
     ctx.globalAlpha = 1;
     requestAnimationFrame(animate);
 }
 
+function showVictoryScreen() {
+    const screen = document.getElementById('game-over');
+    screen.innerHTML = `
+        <h1 style="color: #00f2ff">¡FELICIDADES!</h1>
+        <p>Lograste sobrevivir al ataque.</p>
+        <p>Eres uno de los mejores pilotos del universo.</p>
+        <p>SCORE FINAL: ${Math.floor(currentScore)}</p>
+        <button onclick="location.reload()">REINICIAR JUEGO</button>
+    `;
+    screen.classList.remove('hidden');
+    saveScore(Math.floor(currentScore));
+}
+
 function saveScore(s) {
-    highScore.push(s);
-    highScore.sort((a, b) => b - a);
+    highScore.push(s); highScore.sort((a, b) => b - a);
     highScore = highScore.slice(0, 4);
     localStorage.setItem('itanoScores', JSON.stringify(highScore));
     updateScores();
@@ -356,7 +325,7 @@ function saveScore(s) {
 
 function updateScores() {
     let list = document.getElementById('scores-list');
-    if(list) list.innerHTML = highScore.map((s, i) => `<div style="color:${i === 0 ? '#C0C0C0' : 'white'}">${i + 1}ER Lugar: <span class="gold-text">${s} pts</span></div>`).join('');
+    if(list) list.innerHTML = highScore.map((s, i) => `<div>${i + 1}ER Lugar: <span class="gold-text">${s} pts</span></div>`).join('');
 }
 
 window.addEventListener('resize', resize);
@@ -372,40 +341,3 @@ resize();
 for (let i = 0; i < 150; i++) stars.push(new Star());
 updateScores();
 animate();
-
-const CACHE_NAME = 'itano-circus-v2'; // Cambia el v2 cada vez que actualices el código
-const ASSETS = [
-  './',
-  './index.html',
-  './style.css',
-  './script.js',
-  './manifest.json'
-];
-
-// Instalar y guardar en caché
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    })
-  );
-  self.skipWaiting(); // Fuerza a que el nuevo SW se active de inmediato
-});
-
-// Limpiar cachés antiguos
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      );
-    })
-  );
-});
-
-// Estrategia: Ir a la red primero, si falla usar caché
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
-});
