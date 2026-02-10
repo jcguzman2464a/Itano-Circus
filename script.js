@@ -218,6 +218,11 @@ function playBubblePop() {
     osc.start(); osc.stop(audioCtx.currentTime + 0.2);
 }
 
+function cerrarVentana() {
+    if (confirm("¿Deseas salir del juego?")) window.close();
+}
+
+
 function animate() {
     ctx.fillStyle = "#000"; ctx.fillRect(0, 0, width, height);
     stars.forEach(s => { s.update(); s.draw(); });
@@ -368,4 +373,5 @@ if ('serviceWorker' in navigator) {
             };
         }).catch(err => console.log('Error al registrar SW:', err));
     });
+
 }
