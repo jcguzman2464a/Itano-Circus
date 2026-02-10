@@ -335,7 +335,12 @@ function updateScores() {
 
 window.addEventListener('resize', resize);
 const updateMouse = e => { 
-    // Si es un evento táctil, prevenimos que la pantalla se mueva
+    // Si el toque es sobre un botón o un elemento interactivo, NO bloqueamos el evento
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+        return; 
+    }
+
+    // Si no es un botón, prevenimos el movimiento de la pantalla (scroll/zoom)
     if (e.cancelable) e.preventDefault(); 
     
     let t = e.touches ? e.touches[0] : e;
